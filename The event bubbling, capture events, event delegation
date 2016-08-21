@@ -1,0 +1,851 @@
+事件——怎样使用事件以及IE和DOM事件模型之间存在哪些主要差别，有需要的朋友可以参考一下
+（1）冒泡型事件：事件按照从最特定的事件目标到最不特定的事件目标(document对象)的顺序触发。
+  IE 5.5: div -> body -> document
+  IE 6.0: div -> body -> html -> document
+  Mozilla 1.0: div -> body -> html -> document -> window
+（2）捕获型事件(event capturing)：事件从最不精确的对象(document 对象)开始触发，然后到最精确(也可以在窗口级别捕获事件，不过必须由开发人员特别指定)。
+（3）DOM事件流：同时支持两种事件模型：捕获型事件和冒泡型事件，但是，捕获型事件先发生。两种事件流会触及DOM中的所有对象，从document对象开始，也在document对象结束。
+  DOM事件模型最独特的性质是，文本节点也触发事件(在IE中不会)。
+支持W3C标准的浏览器在添加事件时用addEventListener(event,fn,useCapture)方法，基中第3个参数useCapture是一个Boolean值，用来设置事件是在事件捕获时执行，还是事件冒泡时执行。而不兼容W3C的浏览器(IE)用attachEvent()方法，此方法没有相关设置，不过IE的事件模型默认是在事件冒泡时执行的，也就是在useCapture等于false的时候执行，所以把在处理事件时把useCapture设置为false是比较安全，也实现兼容浏览器的效果。
+
+事件捕获阶段：事件从最上一级标签开始往下查找，直到捕获到事件目标(target)。
+事件冒泡阶段：事件从事件目标(target)开始，往上冒泡直到页面的最上一级标签。
+
+假设一个元素div，它有一个下级元素p。
+<div>
+　　<p>元素</p>
+</div>
+这两个元素都绑定了click事件，如果用户点击了p，它在div和p上都触发了click事件，那这两个事件处理程序哪个先执行呢？事件顺序是什么？
+ 
+两种模型
+以前，Netscape和Microsoft是不同的实现方式。
+Netscape中，div先触发，这就叫做事件捕获。
+Microsoft中，p先触发，这就叫做事件冒泡。
+两种事件处理顺序刚好相反。IE只支持事件冒泡，Mozilla, Opera 7 和 Konqueror两种都支持，旧版本的Opera's 和 iCab两种都不支持 。
+事件捕获
+当你使用事件捕获时，父级元素先触发，子级元素后触发，即div先触发，p后触发。
+事件冒泡
+当你使用事件冒泡时，子级元素先触发，父级元素后触发，即p先触发，div后触发。
+W3C模型
+W3C模型是将两者进行中和，在W3C模型中，任何事件发生时，先从顶层开始进行事件捕获，直到事件触发到达了事件源元素。然后，再从事件源往上进行事件冒泡，直到到达document。
+程序员可以自己选择绑定事件时采用事件捕获还是事件冒泡，方法就是绑定事件时通过addEventListener函数，它有三个参数，第三个参数若是true，则表示采用事件捕获，若是false，则表示采用事件冒泡。
+ele.addEventListener('click',doSomething2,true)
+true=捕获
+false=冒泡
+传统绑定事件方式
+在一个支持W3C DOM的浏览器中，像这样一般的绑定事件方式，是采用的事件冒泡方式。
+ele.onclick = doSomething2
+IE浏览器
+如上面所说，IE只支持事件冒泡，不支持事件捕获，它也不支持addEventListener函数，不会用第三个参数来表示是冒泡还是捕获，它提供了另一个函数attachEvent。
+ele.attachEvent("onclick", doSomething2);
+附：事件冒泡（的过程）：事件从发生的目标（event.srcElement||event.target）开始，沿着文档逐层向上冒泡，到document为止。
+事件的传播是可以阻止的：
+• 在W3c中，使用stopPropagation（）方法
+• 在IE下设置cancelBubble = true；
+在捕获的过程中stopPropagation（）；后，后面的冒泡过程也不会发生了~
+3.阻止事件的默认行为，例如click <a>后的跳转~
+• 在W3c中，使用preventDefault（）方法；
+• 在IE下设置window.event.returnValue = false;
+4.哇，终于写完了，一边测试一边写的额，不是所有的事件都能冒泡，例如：blur、focus、load、unload，（这个是从别人的文章里摘过来的,我没测试）。
+
+
+
+
+
+
+谈起JavaScript的 事件，事件冒泡、事件捕获、阻止默认事件这三个话题，无论是面试还是在平时的工作中，都很难避免。
+ 
+　　冒泡篇：
+ 
+　　先来看一段实例：
+ 
+　　js:
+ 
+ 
+        var $input = document.getElementsByTagName("input")[0];
+        var $div = document.getElementsByTagName("div")[0];
+        var $body = document.getElementsByTagName("body")[0];
+        
+        $input.onclick = function(e){
+            this.style.border = "5px solid red"
+            var e = e || window.e;
+            alert("red")
+        }
+        $div.onclick = function(e){
+            this.style.border = "5px solid green"
+            alert("green")
+        }
+        $body.onclick = function(e){
+            this.style.border = "5px solid yellow"
+            alert("yellow")
+        }
+ 
+html:
+ 
+    <div>
+        <input type="button" value="测试事件冒泡" />
+    </div>
+依次弹出”red“,"green","yellow"。
+ 
+你的本意是触发button这个元素，却连同父元素绑定的事件一同触发。这就是事件冒泡。
+ 
+如果对input的事件绑定改为：
+ 
+$input.onclick = function(e){
+    this.style.border = "5px solid red"
+    var e = e || window.e;
+    alert("red")
+    e.stopPropagation();
+}
+这个时候只会弹出”red“
+ 
+因为阻止了事件冒泡。
+ 
+ 
+ 
+捕获篇：
+ 
+既然有事件的冒泡，也可以有事件的捕获，这是一个相反的过程。区别是从顶层元素到目标元素或者从目标元素到顶层元素。
+ 
+来看代码：
+ 
+ 
+ 
+$input.addEventListener("click", function(){
+    this.style.border = "5px solid red";
+    alert("red")
+}, true)
+$div.addEventListener("click", function(){
+    this.style.border = "5px solid green";
+    alert("green")
+}, true)
+$body.addEventListener("click", function(){
+    this.style.border = "5px solid yellow";
+    alert("yellow")
+}, true)
+ 
+这个时候依次弹出”yellow“,"green","red"。
+ 
+这就是事件的捕获。
+ 
+如果把addEventListener方法的第三个参数改成false，则表示只在冒泡的阶段触发，弹出的依次为：”red“,"green","yellow"。
+ 
+ 
+ 
+阻止默认事件篇：
+ 
+有一些html元素默认的行为，比如说a标签，点击后有跳转动作；form表单中的submit类型的input有一个默认提交跳转事件；reset类型的input有重置表单行为。
+ 
+如果你想阻止这些浏览器默认行为，JavaScript为你提供了方法。
+ 
+先上代码
+ 
+ 
+1 var $a = document.getElementsByTagName("a")[0];
+2 $a.onclick = function(e){
+3     alert("跳转动作被我阻止了")
+4     e.preventDefault();
+5     //return false;//也可以
+6 }
+ 
+ 
+默认事件没有了。
+ 
+既然return false 和 e.preventDefault()都是一样的效果，那它们有区别吗？当然有。
+ 
+仅仅是在HTML事件属性 和 DOM0级事件处理方法中 才能通过返回 return false 的形式组织事件宿主的默认行为。
+
+
+有做过北大青鸟培训讲师经验的我，如今在一家公司做技术部经理的职位，发现有很多程序员的基本功相当糟糕，在组织企业内部培训时讲解了一些案例，总结了一些经典代码，希望对自己和有需要的人提供一些帮助吧：
+JavaScript版本:
+DOM0事件不支持委托链
+
+
+ 1 <!DOCTYPE html>
+ 2 <html xmlns="http://www.w3.org/1999/xhtml">
+ 3 <head>
+ 4     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+ 5     <title>DOM0事件不支持委托链</title>
+ 6     <script language="javascript" type="text/javascript">
+ 7         window.onload = function () {
+ 8             //DOM0事件不支持委托链
+ 9             document.getElementById("child").onclick = function () {
+10                 output("abc");
+11             };
+12             document.getElementById("child").onclick = function () {
+13                 output("123");
+14             };
+15             document.getElementById("child").onclick = function () {
+16                 output("def");
+17             };
+18             document.getElementById("child").onclick = function () {
+19                 output("456");
+20             };
+21         };
+22 
+23         function output(text) {
+24             document.getElementById("content").innerHTML += text + "<br/>";
+25         }
+26     </script>
+27 </head>
+28 <body id="body">
+29     <div id="parent">
+30         <div id="child">
+31             点击这里
+32         </div>
+33     </div>
+34     <div id="content">
+35     </div>
+36 </body>
+37 </html>
+
+DOM2事件支持委托链
+
+
+ 1 <!DOCTYPE html>
+ 2 <html xmlns="http://www.w3.org/1999/xhtml">
+ 3 <head>
+ 4     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+ 5     <title>DOM2事件支持委托链</title>
+ 6     <script language="javascript" type="text/javascript">
+ 7         window.onload = function () {
+ 8             //DOM2事件支持委托链
+ 9             if (document.all) {
+10                 document.getElementById("child").attachEvent("onclick", function () {
+11                     output("IE:abc");
+12                 });
+13                 document.getElementById("child").attachEvent("onclick", function () {
+14                     output("IE:123");
+15                 });
+16                 document.getElementById("child").attachEvent("onclick", function () {
+17                     output("IE:def");
+18                 });
+19                 document.getElementById("child").attachEvent("onclick", function () {
+20                     output("IE:456");
+21                 });
+22             } else {
+23                 document.getElementById("child").addEventListener("click", function () {
+24                     output("Other:abc");
+25                 });
+26                 document.getElementById("child").addEventListener("click", function () {
+27                     output("Other:123");
+28                 });
+29                 document.getElementById("child").addEventListener("click", function () {
+30                     output("Other:def");
+31                 });
+32                 document.getElementById("child").addEventListener("click", function () {
+33                     output("Other:456");
+34                 });
+35             }
+36         };
+37 
+38         function output(text) {
+39             document.getElementById("content").innerHTML += "注意IE和Other的顺序：" + text + "<br/>";
+40         }
+41     </script>
+42 </head>
+43 <body id="body">
+44     <div id="parent">
+45         <div id="child">
+46             点击这里
+47         </div>
+48     </div>
+49     <div id="content">
+50     </div>
+51 </body>
+52 </html>
+
+采用DOM0方式添加所有html事件,支持取消事件冒泡
+
+
+ 1 <!DOCTYPE html>
+ 2 <html xmlns="http://www.w3.org/1999/xhtml">
+ 3 <head>
+ 4     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+ 5     <title>采用DOM0方式添加所有html事件,支持取消事件冒泡</title>
+ 6     <script src="js/jquery-1.8.2.js"></script>
+ 7     <script language="javascript" type="text/javascript">
+ 8         window.onload = function () {
+ 9             //给所有DOM对象添加所有html的click事件，采用DOM0方式
+10             var tags = document.getElementsByTagName("*");
+11             for (var i = 0 ; i < tags.length ; i++) {
+12                 var tag = tags[i];
+13                 tag.onclick = onEvent;
+14             }
+15         };
+16         function onEvent(event) {
+17             //window.alert(event);//IE不支持
+18             //return;
+19 
+20             //event = event ? event : window.event;
+21             //window.alert(event);//都支持
+22             //return;
+23 
+24             //window.alert(event.target);//IE不支持
+25             //return;
+26 
+27             //event = event ? event : window.event;
+28             //target = event.target ? event.target : event.srcElement;
+29             //window.alert(target);//都支持
+30             //return;
+31 
+32             //event = event ? event : window.event;
+33             //target = event.target ? event.target : event.srcElement;
+34             //output("事件源:" + target.id + "," + target.tagName + ",事件对象：" + this.id);//DOM0会产生冒泡
+35             //return;
+36 
+37             event = event ? event : window.event;
+38             target = event.target ? event.target : event.srcElement;
+39             output("事件源:" + target.id + "," + target.tagName + ",事件对象：" + this.id);//DOM0会产生冒泡
+40 
+41             //支持取消事件冒泡
+42             if (event.cancelable) {
+43                 event.stopPropagation();//其他浏览器取消事件冒泡
+44             } else {
+45                 event.cancelBubble = true;//IE取消事件冒泡
+46             }
+47         };
+48         function output(text) {
+49             document.getElementById("content").innerHTML += "" + text + "<br/>";
+50         }
+51     </script>
+52 </head>
+53 <body id="body">
+54     <div id="parent">
+55         <div id="child">
+56             点击这里
+57         </div>
+58     </div>
+59     <div id="content">
+60     </div>
+61 </body>
+62 </html>
+
+采用DOM2方式添加所有html事件,支持取消事件冒泡
+
+
+ 1 <!DOCTYPE html>
+ 2 <html xmlns="http://www.w3.org/1999/xhtml">
+ 3 <head>
+ 4     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+ 5     <title>采用DOM2方式添加所有html事件,支持取消事件冒泡</title>
+ 6     <script language="javascript" type="text/javascript">
+ 7         window.onload = function () {
+ 8             //给所有DOM对象添加所有html的click事件，采用DOM2方式
+ 9             var tags = document.getElementsByTagName("*");
+10             for (var i = 0 ; i < tags.length ; i++) {
+11                 (function () { //增加闭包，解决IE浏览器onEvent方法定义里面的this都指向了每一个不同的事件对象，而不是都指向了同一个content事件对象，
+12                     var tag = tags[i];
+13                     //DOM2方式
+14                     if (document.all) {
+15                         //IE浏览器
+16                         //tag.attachEvent("onclick", onEvent);//onEvent里面的this指向window
+17                         //tag.attachEvent("onclick", function () {
+18                         //    onEvent.call(tag);//onEvent方法定义里面的this都指向了content，因为没有使用闭包
+19                         //});
+20                         tag.attachEvent("onclick", function () {
+21                             onEvent.call(tag);//使用闭包的方式解决this的问题，在var = tags[i];上面增加闭包的使用
+22                         });
+23                     } else {
+24                         tag.addEventListener("click", onMaoPaoEvent);//事件冒泡，false可以不写
+25                         //tag.addEventListener("click", onMaoPaoEvent, false);//事件冒泡
+26                         tag.addEventListener("click", onBuHuoEvent, true);//事件捕获
+27                     }
+28                 })();
+29             }
+30         };
+31         function onEvent(event) {
+32             event = event ? event : window.event;
+33             target = event.target ? event.target : event.srcElement;
+34             output("事件源:" + target.id + "," + target.tagName + ",事件对象：" + this.id);//DOM0会产生冒泡
+35             return;
+36             //同样支持取消事件冒泡
+37             if (event.cancelable) {
+38                 event.stopPropagation();//其他浏览器取消事件冒泡
+39             } else {
+40                 event.cancelBubble = true;//IE取消事件冒泡
+41             }
+42         };
+43         function onMaoPaoEvent(event) {
+44             event = event ? event : window.event;
+45             target = event.target ? event.target : event.srcElement;
+46             output("事件冒泡-->事件源:" + target.id + "," + target.tagName + ",事件对象：" + this.id);//DOM0会产生冒泡
+47             return;
+48             //同样支持取消事件冒泡
+49             if (event.cancelable) {
+50                 event.stopPropagation();//其他浏览器取消事件冒泡
+51             } else {
+52                 event.cancelBubble = true;//IE取消事件冒泡
+53             }
+54         };
+55         function onBuHuoEvent(event) {
+56             event = event ? event : window.event;
+57             target = event.target ? event.target : event.srcElement;
+58             output("事件捕获-->事件源:" + target.id + "," + target.tagName + ",事件对象：" + this.id);//DOM0会产生捕获
+59             return;
+60             //同样支持取消事件捕获
+61             if (event.cancelable) {
+62                 event.stopPropagation();//其他浏览器取消事件冒泡
+63             } else {
+64                 event.cancelBubble = true;//IE取消事件冒泡
+65             }
+66         };
+67         function output(text) {
+68             document.getElementById("content").innerHTML += "" + text + "<br/>";
+69         }
+70     </script>
+71 </head>
+72 <body id="body">
+73     <div id="parent">
+74         <div id="child">
+75             点击这里
+76         </div>
+77     </div>
+78     <div id="content">
+79     </div>
+80 </body>
+81 </html>
+
+ JQuery版本:
+DOM0事件不支持委托链
+
+
+ 1 <!DOCTYPE html>
+ 2 <html xmlns="http://www.w3.org/1999/xhtml">
+ 3 <head>
+ 4     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+ 5     <title>DOM0事件不支持委托链</title>
+ 6     <script src="/js/jquery-1.8.2.js"></script>
+ 7     <script language="javascript" type="text/javascript">
+ 8         $(function () {
+ 9             //DOM0事件不支持委托链
+10             $("#child")[0].onclick = function (event) {
+11                 output("abc");
+12             };
+13             $("#child")[0].onclick = function (event) {
+14                 output("123");
+15             };
+16             $("#child")[0].onclick = function (event) {
+17                 output("def");
+18             };
+19             $("#child")[0].onclick = function (event) {
+20                 output("456");
+21             };
+22         });
+23         function output(text) {
+24             $("#content").append(text + "<br/>");
+25         }
+26     </script>
+27 </head>
+28 <body id="body">
+29     <div id="parent">
+30         <div id="child">
+31             点击这里
+32         </div>
+33     </div>
+34     <div id="content">
+35     </div>
+36 </body>
+37 </html>
+
+DOM2事件支持委托链
+
+
+ 1 <!DOCTYPE html>
+ 2 <html xmlns="http://www.w3.org/1999/xhtml">
+ 3 <head>
+ 4     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+ 5     <title>DOM2事件支持委托链</title>
+ 6     <script src="/js/jquery-1.8.2.js"></script>
+ 7     <script language="javascript" type="text/javascript">
+ 8         $(function () {
+ 9             //DOM2事件支持委托链
+10             $("#child").bind("click", function (event) {
+11                 output("abc");
+12             });
+13             $("#child").bind("click", function (event) {
+14                 output("123");
+15             });
+16             $("#child").bind("click",  function (event) {
+17                 output("def");
+18             });
+19             $("#child").bind("click",  function (event) {
+20                 output("456");
+21             });
+22             //第二种方式也支持委托链
+23             //$("#child").click(function (event) {
+24             //    output("abc");
+25             //});
+26             //$("#child").click(function (event) {
+27             //    output("123");
+28             //});
+29             //$("#child").click(function (event) {
+30             //    output("def");
+31             //});
+32             //$("#child").click(function (event) {
+33             //    output("456");
+34             //});
+35         });
+36         function output(text) {
+37             $("#content").append(text + "<br/>");
+38         }
+39     </script>
+40 </head>
+41 <body id="body">
+42     <div id="parent">
+43         <div id="child">
+44             点击这里
+45         </div>
+46     </div>
+47     <div id="content">
+48     </div>
+49 </body>
+50 </html>
+
+采用DOM0方式添加所有html事件,支持取消事件冒泡
+
+
+ 1 <!DOCTYPE html>
+ 2 <html xmlns="http://www.w3.org/1999/xhtml">
+ 3 <head>
+ 4     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+ 5     <title>采用DOM0方式添加所有html事件,支持取消事件冒泡</title>
+ 6     <script src="/js/jquery-1.8.2.js"></script>
+ 7     <script language="javascript" type="text/javascript">
+ 8         $(function () {
+ 9             $("*").each(function (index, item) {
+10                 item.onclick = function (event) {
+11                     event = event ? event : window.event;
+12                     target = event.target ? event.target : event.srcElement;
+13                     output("事件源:" + target.id + "," + target.tagName + ",事件对象：" + this.id);//DOM0会产生冒泡
+14 
+15                     //支持取消事件冒泡
+16                     if (event.cancelable) {
+17                         event.stopPropagation();//其他浏览器取消事件冒泡
+18                     } else {
+19                         event.cancelBubble = true;//IE取消事件冒泡
+20                     }
+21                 };
+22             });
+23         });
+24         function output(text) {
+25             $("#content").append(text + "<br/>");
+26         }
+27     </script>
+28 </head>
+29 <body id="body">
+30     <div id="parent">
+31         <div id="child">
+32             点击这里
+33         </div>
+34     </div>
+35     <div id="content">
+36     </div>
+37 </body>
+38 </html>
+
+采用DOM2方式添加所有html事件,支持取消事件冒泡
+
+
+ 1 <!DOCTYPE html>
+ 2 <html xmlns="http://www.w3.org/1999/xhtml">
+ 3 <head>
+ 4     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+ 5     <title>采用DOM2方式添加所有html事件,支持取消事件冒泡</title>
+ 6     <script src="/js/jquery-1.8.2.js"></script>
+ 7     <script language="javascript" type="text/javascript">
+ 8         $(function () {
+ 9             $("*").each(function (index, item) {
+10                 $(item).bind("click", function (event) {
+11                     output("事件源:" + event.target.id + "," + event.target.tagName + ",事件对象：" + event.currentTarget.id);//DOM2会产生冒泡
+12                     //支持取消事件冒泡
+13                     event.stopPropagation();
+14                 });
+15                 //第二种方式也支持
+16                 //$(item).click(function (event) {
+17                 //    output("事件源:" + event.target.id + "," + event.target.tagName + ",事件对象：" + event.currentTarget.id);//DOM2会产生冒泡
+18                 //    //支持取消事件冒泡
+19                 //    //event.stopPropagation();
+20                 //});
+21             });
+22         });
+23         function output(text) {
+24             $("#content").append(text + "<br/>");
+25         }
+26     </script>
+27 </head>
+28 <body id="body">
+29     <div id="parent">
+30         <div id="child">
+31             点击这里
+32         </div>
+33     </div>
+34     <div id="content">
+35     </div>
+36 </body>
+37 </html>
+
+
+
+event.preventDefault()阻止默认事件行为的触发。
+event.stopPropagation()防止事件冒泡到DOM树上，也就是不触发的任何前辈元素上的事件处理函数。
+
+
+ 1 <!DOCTYPE html>
+ 2 <html xmlns="http://www.w3.org/1999/xhtml">
+ 3 <head>
+ 4     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+ 5     <title>取消form表单提交或a打开的超连接</title>
+ 6     <script src="/js/jquery-1.8.2.js"></script>
+ 7     <script language="javascript" type="text/javascript">
+ 8         $(function () {
+ 9             $("*").each(function (index, item) {
+10                 $(item).bind("click", function (event) {
+11                     output("事件源:" + event.target.id + "," + event.target.tagName + ",事件对象：" + event.currentTarget.id);//DOM2会产生冒泡
+12                     //取消form表单提交或a打开的超连接
+13                     window.alert("begin:" + event.isDefaultPrevented());
+14                     event.preventDefault();
+15                     window.alert("end:" + event.isDefaultPrevented());
+16 
+17                     //同样也支持取消事件冒泡
+18                     window.alert("begin:" + event.isPropagationStopped());
+19                     event.stopPropagation();
+20                     window.alert("end:" + event.isPropagationStopped());
+21                 });
+22             });
+23         });
+24         function output(text) {
+25             $("#content").append(text + "<br/>");
+26         }
+27     </script>
+28 </head>
+29 <body id="body">
+30     <div id="parent">
+31         <div id="child">
+32             点击这里
+33             <a id="link" href="http://www.baidu.com">超连接</a>
+34             <form id="form" action="http://www.baidu.com">
+35                 <input id="submit" type="submit" value="submit"/>
+36             </form>
+37         </div>
+38     </div>
+39     <div id="content">
+40     </div>
+41 </body>
+42 </html>
+
+
+
+事件冒泡与事件捕获
+事件冒泡和事件捕获分别由微软和网景公司提出，这两个概念都是为了解决页面中事件流（事件发生顺序）的问题。
+<div id="outer">
+    <p id="inner">Click me!</p>
+</div>
+上面的代码当中一个div元素当中有一个p子元素，如果两个元素都有一个click的处理函数，那么我们怎么才能知道哪一个函数会首先被触发呢？
+为了解决这个问题微软和网景提出了两种几乎完全相反的概念。
+事件冒泡
+微软提出了名为事件冒泡(event bubbling)的事件流。事件冒泡可以形象地比喻为把一颗石头投入水中，泡泡会一直从水底冒出水面。也就是说，事件会从最内层的元素开始发生，一直向上传播，直到document对象。
+因此上面的例子在事件冒泡的概念下发生click事件的顺序应该是p -> div -> body -> html -> document
+事件捕获
+网景提出另一种事件流名为事件捕获(event capturing)。与事件冒泡相反，事件会从最外层开始发生，直到最具体的元素。
+上面的例子在事件捕获的概念下发生click事件的顺序应该是document -> html -> body -> div -> p
+addEventListener的第三个参数
+“DOM2级事件”中规定的事件流同时支持了事件捕获阶段和事件冒泡阶段，而作为开发者，我们可以选择事件处理函数在哪一个阶段被调用。
+addEventListener方法用来为一个特定的元素绑定一个事件处理函数，是JavaScript中的常用方法。addEventListener有三个参数：
+element.addEventListener(event, function, useCapture)
+第一个参数是需要绑定的事件，第二个参数是触发事件后要执行的函数。而第三个参数默认值是false，表示在事件冒泡的阶段调用事件处理函数，如果参数为true，则表示在事件捕获阶段调用处理函数。请看例子。
+事件代理
+在实际的开发当中，利用事件流的特性，我们可以使用一种叫做事件代理的方法。
+<ul id="color-list">
+    <li>red</li>
+    <li>yellow</li>
+    <li>blue</li>
+    <li>green</li>
+    <li>black</li>
+    <li>white</li>
+</ul>
+如果点击页面中的li元素，然后输出li当中的颜色，我们通常会这样写:
+(function(){
+    var color_list = document.getElementById('color-list');
+    var colors = color_list.getElementsByTagName('li');
+    for(var i=0;i<colors.length;i++){                          colors[i].addEventListener('click',showColor,false);
+    };
+    function showColor(e){
+        var x = e.target;
+        alert("The color is " + x.innerHTML);
+    };
+})();
+利用事件流的特性，我们只绑定一个事件处理函数也可以完成：
+(function(){
+    var color_list = document.getElementById('color-list');
+    color_list.addEventListener('click',showColor,false);
+    function showColor(e){
+        var x = e.target;
+        if(x.nodeName.toLowerCase() === 'li'){
+            alert('The color is ' + x.innerHTML);
+        }
+    }
+})();
+使用事件代理的好处不仅在于将多个事件处理函数减为一个，而且对于不同的元素可以有不同的处理方法。假如上述列表元素当中添加了其他的元素（如：a、span等），我们不必再一次循环给每一个元素绑定事件，直接修改事件代理的事件处理函数即可。
+冒泡还是捕获？
+对于事件代理来说，在事件捕获或者事件冒泡阶段处理并没有明显的优劣之分，但是由于事件冒泡的事件流模型被所有主流的浏览器兼容，从兼容性角度来说还是建议大家使用事件冒泡模型。
+IE浏览器兼容
+IE浏览器对addEventListener兼容性并不算太好，只有IE9以上可以使用。
+
+要兼容旧版本的IE浏览器，可以使用IE的attachEvent函数
+object.attachEvent(event, function)
+两个参数与addEventListener相似，分别是事件和处理函数，默认是事件冒泡阶段调用处理函数，要注意的是，写事件名时候要加上"on"前缀（"onload"、"onclick"等）。
+感谢您的阅读，有不足之处请为我指出。
+
+javascript, jquery的事件中都存在事件冒泡和事件捕获的问题，针对这两个问题，本文给出详细的解决方法，需要的朋友不要错过
+javascript, jquery的事件中都存在事件冒泡和事件捕获的问题，下面将两种问题及其解决方案做详细总结。
+事件冒泡是一个从子节点向祖先节点冒泡的过程；
+事件捕获刚好相反，是从祖先节点到子节点的过程。
+给一个jquery点击事件的例子：
+代码如下:
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>test</title>
+<head>
+<script src="http://code.jquery.com/jquery-latest.js"></script>
+<script type="text/javascript">
+$(function(){
+$('#clickMe').click(function(){
+alert('hello');
+});
+$('body').click(function(){
+alert('baby');
+});
+});
+</script>
+</head>
+<body>
+<div style="width:100px;height:100px;background-color:red;">
+<button type="button" id="button2">click me</button>
+<button id="clickMe">click</button>
+</div>
+</body>
+</html>
+事件冒泡现象：点击 “id=clickMe” 的button,会先后出现“hello” 和 “baby” 两个弹出框。
+分析：当点击 “id=clickMe” 的button时，触发了绑定在button 和 button 父元素及body的点击事件，所以先后弹出两个框，出现所谓的冒泡现象。
+事件捕获现象：点击没有绑定点击事件的div和 “id=button2” 的button, 都会弹出 “baby” 的对话框。
+在实际的项目中，我们要阻止事件冒泡和事件捕获现象。
+阻止事件冒泡方法：
+法1：当前点击事件中return false;
+代码如下:
+$('#clickMe').click(function(){
+alert('hello');
+return false;
+});
+法2：
+代码如下:
+$('#clickMe').click(function(event){
+alert('hello');
+var e = window.event || event;
+if ( e.stopPropagation ){ //如果提供了事件对象，则这是一个非IE浏览器
+e.stopPropagation();
+}else{
+//兼容IE的方式来取消事件冒泡
+window.event.cancelBubble = true;
+}
+});
+
+
+
+
+
+有限状态机（Finite-state machine）是一个非常有用的模型，可以模拟世界上大部分事物,下面是使用示例
+简单说，它有三个特征：
+代码如下:
+* 状态总数（state）是有限的。
+* 任一时刻，只处在一种状态之中。
+* 某种条件下，会从一种状态转变（transition）到另一种状态。
+它对JavaScript的意义在于，很多对象可以写成有限状态机。
+举例来说，网页上有一个菜单元素。鼠标悬停的时候，菜单显示；鼠标移开的时候，菜单隐藏。如果使用有限状态机描述，就是这个菜单只有两种状态（显示和隐藏），鼠标会引发状态转变。
+代码可以写成下面这样：
+代码如下:
+var menu = {
+// 当前状态
+currentState: 'hide',
+// 绑定事件
+initialize: function() {
+var self = this;
+self.on("hover", self.transition);
+},
+// 状态转换
+transition: function(event){
+switch(this.currentState) {
+case "hide":
+this.currentState = 'show';
+doSomething();
+break;
+case "show":
+this.currentState = 'hide';
+doSomething();
+break;
+default:
+console.log('Invalid State!');
+break;
+}
+}
+};
+可以看到，有限状态机的写法，逻辑清晰，表达力强，有利于封装事件。一个对象的状态越多、发生的事件越多，就越适合采用有限状态机的写法。
+另外，JavaScript语言是一种异步操作特别多的语言，常用的解决方法是指定回调函数，但这样会造成代码结构混乱、难以测试和除错等问题。有限状态机提供了更好的办法：把异步操作与对象的状态改变挂钩，当异步操作结束的时候，发生相应的状态改变，由此再触发其他操作。这要比回调函数、事件监听、发布/订阅等解决方案，在逻辑上更合理，更易于降低代码的复杂度。
+下面介绍一个有限状态机的函数库Javascript Finite State Machine。这个库非常好懂，可以帮助我们加深理解，而且功能一点都不弱。
+该库提供一个全局对象StateMachine，使用该对象的create方法，可以生成有限状态机的实例。
+复制代码 代码如下:
+var fsm = StateMachine.create();
+生成的时候，需要提供一个参数对象，用来描述实例的性质。比如，交通信号灯（红绿灯）可以这样描述：
+代码如下:
+var fsm = StateMachine.create({
+initial: 'green',
+events: [
+{ name: 'warn',  from: 'green',  to: 'yellow' },
+{ name: 'stop', from: 'yellow', to: 'red' },
+{ name: 'ready',  from: 'red',    to: 'yellow' },
+{ name: 'go', from: 'yellow', to: 'green' }
+]
+});
+交通信号灯的初始状态（initial）为green，events属性是触发状态改变的各种事件，比如warn事件使得green状态变成yellow状态，stop事件使得yellow状态变成red状态等等。
+生成实例以后，就可以随时查询当前状态。
+代码如下:
+* fsm.current ：返回当前状态。
+* fsm.is(s) ：返回一个布尔值，表示状态s是否为当前状态。
+* fsm.can(e) ：返回一个布尔值，表示事件e是否能在当前状态触发。
+* fsm.cannot(e) ：返回一个布尔值，表示事件e是否不能在当前状态触发。
+Javascript Finite State Machine允许为每个事件指定两个回调函数，以warn事件为例：
+代码如下:
+* onbeforewarn：在warn事件发生之前触发。
+* onafterwarn（可简写成onwarn） ：在warn事件发生之后触发。
+同时，它也允许为每个状态指定两个回调函数，以green状态为例：
+代码如下:
+* onleavegreen ：在离开green状态时触发。
+* onentergreen（可简写成ongreen） ：在进入green状态时触发。
+假定warn事件使得状态从green变为yellow，上面四类回调函数的发生顺序如下：onbeforewarn → onleavegreen → onenteryellow → onafterwarn。
+除了为每个事件和状态单独指定回调函数，还可以为所有的事件和状态指定通用的回调函数。
+代码如下:
+* onbeforeevent ：任一事件发生之前触发。
+* onleavestate ：离开任一状态时触发。
+* onenterstate ：进入任一状态时触发。
+* onafterevent ：任一事件结束后触发。
+如果事件的回调函数里面有异步操作（比如与服务器进行Ajax通信），这时我们可能希望等到异步操作结束，再发生状态改变。这就要用到transition方法。
+代码如下:
+fsm.onwarn = function(){
+light.fadeOut('slow', function() {
+fsm.transition();
+});
+return StateMachine.ASYNC;
+};
+上面代码的回调函数里面，有一个异步操作（light.fadeOut）。如果不希望状态立即改变，就要让回调函数返回一个StateMachine.ASYNC对象，表示状态暂时不改变；等到异步操作结束，再调用transition方法，使得状态发生改变。
+Javascript Finite State Machine还允许指定错误处理函数，当发生了当前状态不可能发生的事件时自动触发。
+代码如下:
+var fsm = StateMachine.create({
+// ...
+error: function(eventName, from, to, args, errorCode, errorMessage) {
+return 'event ' + eventName + ': ' + errorMessage;
+},
+// ...
+});
+比如，当前状态是green，理论上这时只可能发生warn事件。要是这时发生了stop事件，就会触发上面的错误处理函数。
+
+
